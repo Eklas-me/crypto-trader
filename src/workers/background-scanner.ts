@@ -29,7 +29,7 @@ export async function runBackgroundScan() {
     try {
       // 1. Fetch data
       const candles = await fetchKlines(coin, timeframe, 200);
-      if (candles.length < 50) continue;
+      if (!candles || candles.length < 50) continue;
 
       // 2. Generate signal
       const signal = generateSignal({ 
