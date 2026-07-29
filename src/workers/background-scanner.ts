@@ -32,7 +32,14 @@ export async function runBackgroundScan() {
       if (candles.length < 50) continue;
 
       // 2. Generate signal
-      const signal = generateSignal(coin, timeframe, candles, DEFAULT_SETTINGS);
+      const signal = generateSignal({ 
+        coin, 
+        timeframe, 
+        candles, 
+        riskSettings: DEFAULT_SETTINGS.risk 
+      });
+
+      if (!signal) continue;
 
       // 3. Filter for A or B grade, and ACTIVE
       if (signal.status === 'ACTIVE' && (signal.grade === 'A' || signal.grade === 'B')) {
