@@ -43,11 +43,9 @@ export function ChartPanel() {
       },
       rightPriceScale: {
         borderColor: '#1e2736',
-        textColor: '#8892a4',
       },
       timeScale: {
         borderColor: '#1e2736',
-        textColor: '#8892a4',
         timeVisible: true,
         secondsVisible: false,
       },
