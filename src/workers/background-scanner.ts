@@ -36,7 +36,7 @@ export async function runBackgroundScan() {
         coin, 
         timeframe, 
         candles, 
-        riskSettings: DEFAULT_SETTINGS.risk 
+        riskSettings: DEFAULT_SETTINGS.riskSettings 
       });
 
       if (!signal) continue;
