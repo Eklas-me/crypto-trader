@@ -5,6 +5,7 @@
 'use client';
 
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import type {
   Signal, Candle, Timeframe, FearGreedData, FuturesSentiment,
   MarketCorrelation, WatchlistCoin, AppSettings, DEFAULT_SETTINGS,
@@ -89,8 +90,10 @@ interface Notification {
 
 // ─── Store Implementation ────────────────────────────────────────────────────
 
-export const useAppStore = create<AppState>((set, get) => ({
-  // ── Settings
+export const useAppStore = create<AppState>()(
+  persist(
+    (set, get) => ({
+      // ── Settings
   settings: DS,
   setSettings: (s) => set(state => ({ settings: { ...state.settings, ...s } })),
 
@@ -182,4 +185,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   dismissNotification: (id) => set(state => ({
     notifications: state.notifications.filter(n => n.id !== id),
   })),
-}));
+    }),
+    {
+      name: 'crypto-trader-storage',
+      partialize: (state) => ({
+        settings: state.settings,
+        watchlist: state.watchlist,
+        selectedCoin: state.selectedCoin,
+        selectedTimeframe: state.selectedTimeframe,
+      }),
+    }
+  )
+);
