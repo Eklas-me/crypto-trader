@@ -19,6 +19,35 @@ export function useDataFeed() {
     fearGreed, correlation, futures, addNotification,
   } = useAppStore();
 
+  // ── Init Global Data ───────────────────────────────────────────────────────
+  useEffect(() => {
+    let mounted = true;
+    const initData = async () => {
+      try {
+        const [settingsRes, signalsRes] = await Promise.all([
+          fetch('/api/settings'),
+          fetch('/api/signals')
+        ]);
+        
+        if (mounted && settingsRes.ok) {
+          const s = await settingsRes.json();
+          useAppStore.getState().setSettings(s);
+          if (s.watchlist && s.watchlist.length > 0) {
+            useAppStore.getState().setWatchlist(s.watchlist);
+          }
+        }
+        if (mounted && signalsRes.ok) {
+          const sigs = await signalsRes.json();
+          useAppStore.getState().setSignals(sigs);
+        }
+      } catch (err) {
+        console.error('[App] Failed to load data from DB:', err);
+      }
+    };
+    initData();
+    return () => { mounted = false; };
+  }, []);
+
   // ── Fetch candle data + run full analysis ────────────────────────────────
   const runAnalysis = useCallback(async (coin: string, tf: Timeframe) => {
     try {

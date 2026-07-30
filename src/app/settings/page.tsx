@@ -10,10 +10,24 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [local, setLocal] = useState(settings);
 
-  const save = () => {
-    setSettings(local);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  const save = async () => {
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(local)
+      });
+      if (res.ok) {
+        setSettings(local);
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      } else {
+        alert('Failed to save settings to database');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error saving settings');
+    }
   };
 
   const reset = () => setLocal(DEFAULT_SETTINGS);
