@@ -45,6 +45,25 @@ export async function startTradeMonitor() {
           const currentPrice = prices[trade.coin];
           if (!currentPrice) continue;
 
+          // 1. Check for Break-Even Trigger (50% towards Take Profit)
+          if (trade.direction === 'BUY') {
+            const halfway = trade.entryPrice + (trade.takeProfit - trade.entryPrice) * 0.5;
+            if (currentPrice >= halfway && trade.stopLoss < trade.entryPrice) {
+              trade.stopLoss = trade.entryPrice;
+              trade.notes = `${trade.notes} | Break-Even Active`;
+              await trade.save().catch(console.error);
+              console.log(`[TradeMonitor] 🛡️ Break-Even triggered for ${trade.coin}! SL set to entry ($${trade.entryPrice})`);
+            }
+          } else {
+            const halfway = trade.entryPrice - (trade.entryPrice - trade.takeProfit) * 0.5;
+            if (currentPrice <= halfway && trade.stopLoss > trade.entryPrice) {
+              trade.stopLoss = trade.entryPrice;
+              trade.notes = `${trade.notes} | Break-Even Active`;
+              await trade.save().catch(console.error);
+              console.log(`[TradeMonitor] 🛡️ Break-Even triggered for ${trade.coin}! SL set to entry ($${trade.entryPrice})`);
+            }
+          }
+
           let shouldClose = false;
           let closeReason: 'TP' | 'SL' = 'TP';
 

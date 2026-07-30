@@ -36,15 +36,18 @@ export async function runBackgroundScan() {
 
   for (const coin of watchlist) {
     try {
-      // 1. Fetch data
+      // 1. Fetch data (1h for entry, 4h for HTF trend)
       const candles = await fetchKlines(coin, timeframe, 200);
       if (!candles || candles.length < 50) continue;
 
-      // 2. Generate signal
+      const htfCandles = await fetchKlines(coin, '4h', 100).catch(() => undefined);
+
+      // 2. Generate signal with MTF alignment
       const signal = generateSignal({ 
         coin, 
         timeframe, 
         candles, 
+        htfCandles,
         riskSettings: settings.riskSettings || DEFAULT_SETTINGS.riskSettings 
       });
 

@@ -96,15 +96,16 @@ function analyzeLayer3_SMC(candles: Candle[]): LayerResult {
   let details = '';
   let confidence = 50;
 
-  // Check if price is at a bullish order block
-  const bullishOBs = smc.orderBlocks.filter(ob => ob.type === 'BULLISH' && !ob.isBreaker);
-  const bearishOBs = smc.orderBlocks.filter(ob => ob.type === 'BEARISH' && !ob.isBreaker);
+  // Check if price is at a bullish order block or breaker block
+  const bullishOBs = smc.orderBlocks.filter(ob => ob.type === 'BULLISH');
+  const bearishOBs = smc.orderBlocks.filter(ob => ob.type === 'BEARISH');
 
   for (const ob of bullishOBs) {
     if (currentPrice >= ob.low && currentPrice <= ob.high) {
       signal = 'BULLISH';
-      details = `Price at Bullish Order Block ($${ob.low.toFixed(2)}-$${ob.high.toFixed(2)})`;
-      confidence = ob.isMitigated ? 60 : 80;
+      const label = ob.isBreaker ? 'Bullish Breaker Block' : 'Bullish Order Block';
+      details = `Price at ${label} ($${ob.low.toFixed(2)}-$${ob.high.toFixed(2)})`;
+      confidence = ob.isBreaker ? 85 : (!ob.isMitigated ? 90 : 65);
       break;
     }
   }
@@ -112,8 +113,9 @@ function analyzeLayer3_SMC(candles: Candle[]): LayerResult {
   for (const ob of bearishOBs) {
     if (currentPrice >= ob.low && currentPrice <= ob.high) {
       signal = 'BEARISH';
-      details = `Price at Bearish Order Block ($${ob.low.toFixed(2)}-$${ob.high.toFixed(2)})`;
-      confidence = ob.isMitigated ? 60 : 80;
+      const label = ob.isBreaker ? 'Bearish Breaker Block' : 'Bearish Order Block';
+      details = `Price at ${label} ($${ob.low.toFixed(2)}-$${ob.high.toFixed(2)})`;
+      confidence = ob.isBreaker ? 85 : (!ob.isMitigated ? 90 : 65);
       break;
     }
   }
@@ -485,6 +487,7 @@ function analyzeLayer12_Correlation(
 
 export interface SignalInput {
   candles: Candle[];
+  htfCandles?: Candle[];
   coin: string;
   timeframe: Timeframe;
   fearGreed?: FearGreedData;
@@ -496,15 +499,16 @@ export interface SignalInput {
 
 export function generateSignal(input: SignalInput): Signal | null {
   const {
-    candles, coin, timeframe, fearGreed, futures, correlation, orderBook, riskSettings,
+    candles, htfCandles, coin, timeframe, fearGreed, futures, correlation, orderBook, riskSettings,
   } = input;
 
   if (candles.length < 200) return null; // Need enough data
 
-  // Run all 12 layers
+  // Run all 12 layers (use htfCandles for Layer 2 if provided)
+  const htfLayerData = htfCandles && htfCandles.length >= 50 ? htfCandles : candles;
   const layers: LayerResult[] = [
     analyzeLayer1_MarketRegime(candles),
-    analyzeLayer2_HTFTrend(candles),
+    analyzeLayer2_HTFTrend(htfLayerData),
     analyzeLayer3_SMC(candles),
     analyzeLayer4_VolumeProfile(candles),
     analyzeLayer5_Momentum(candles),
@@ -538,6 +542,19 @@ export function generateSignal(input: SignalInput): Signal | null {
     layersAgreed = bearishCount;
   } else {
     return null; // Not enough confluence
+  }
+
+  // MTF Hard Check: If HTF candles were provided, ensure HTF Trend is not strictly opposing!
+  if (htfCandles && htfCandles.length >= 50) {
+    const htfLayer = analyzeLayer2_HTFTrend(htfCandles);
+    if (direction === 'BUY' && htfLayer.signal === 'BEARISH' && htfLayer.confidence >= 80) {
+      console.log(`[SignalEngine] Signal for ${coin} rejected: 1h BUY opposes strong 4h BEARISH trend`);
+      return null;
+    }
+    if (direction === 'SELL' && htfLayer.signal === 'BULLISH' && htfLayer.confidence >= 80) {
+      console.log(`[SignalEngine] Signal for ${coin} rejected: 1h SELL opposes strong 4h BULLISH trend`);
+      return null;
+    }
   }
 
   // Grade the signal
