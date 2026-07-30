@@ -6,11 +6,13 @@ import { connectDB } from '@/lib/db';
 import SettingsModel from '@/models/Settings';
 import SignalModel from '@/models/Signal';
 import TradeModel from '@/models/Trade';
+import { incrementScanCount } from '@/lib/status-tracker';
 
 // In-memory cache to prevent duplicate signals for the same coin on the same candle
 const lastSignalSent: Record<string, number> = {};
 
 export async function runBackgroundScan() {
+  incrementScanCount();
   console.log(`[Scanner] Running background scan at ${new Date().toISOString()}...`);
   
   try {

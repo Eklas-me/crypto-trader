@@ -1,8 +1,8 @@
 'use client';
 
 import { useAppStore } from '@/store/app-store';
-import { RefreshCw, Bell, ChevronDown } from 'lucide-react';
-import { useState } from 'react';
+import { RefreshCw, Bell, ChevronDown, Activity } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import type { Timeframe } from '@/engine/types';
 
 const TIMEFRAMES: Timeframe[] = ['15m', '1h', '4h', '1d'];
@@ -25,6 +25,23 @@ export function Header({ onRefresh }: { onRefresh: () => void }) {
 
   const [showNotifs, setShowNotifs] = useState(false);
   const [showCoinDrop, setShowCoinDrop] = useState(false);
+  const [uptimeStr, setUptimeStr] = useState<string>('Connecting...');
+
+  useEffect(() => {
+    const fetchStatus = async () => {
+      try {
+        const res = await fetch('/api/status');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.uptimeFormatted) setUptimeStr(data.uptimeFormatted);
+        }
+      } catch (e) {}
+    };
+
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
   const price = livePrices[selectedCoin] ?? tickers[selectedCoin]?.lastPrice ?? 0;
   const ticker = tickers[selectedCoin];
@@ -122,6 +139,12 @@ export function Header({ onRefresh }: { onRefresh: () => void }) {
 
       {/* Spacer */}
       <div className="flex-1" />
+
+      {/* System Uptime Badge */}
+      <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+        <span>System Uptime: {uptimeStr}</span>
+      </div>
 
       {/* Last scan */}
       <span className="text-xs hidden md:block" style={{ color: 'var(--foreground-muted)' }}>
