@@ -12,6 +12,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@types/ws": "^8.18.1",
     "clsx": "^2.1.1",
     "lightweight-charts": "^5.2.0",
     "lucide-react": "^1.27.0",
@@ -25,6 +26,7 @@
     "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.3",
     "tailwind-merge": "^3.6.0",
+    "ws": "^8.21.1",
     "zustand": "^5.0.14"
   },
   "devDependencies": {

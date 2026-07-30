@@ -192,6 +192,19 @@ export function SignalPanel() {
         <div className="flex items-center gap-2">
           <Zap size={16} style={{ color: 'var(--yellow)' }} />
           <span className="text-sm font-semibold">Signals</span>
+          {tab === 'history' && signals.length > 0 && (
+            <button
+              onClick={async () => {
+                if (confirm('Are you sure you want to clear all signal history?')) {
+                  await fetch('/api/signals/clear', { method: 'DELETE' });
+                  window.location.reload();
+                }
+              }}
+              className="ml-2 text-xs text-red-500 hover:text-red-400 transition-colors"
+            >
+              Clear
+            </button>
+          )}
         </div>
         <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'var(--background-tertiary)' }}>
           {(['active', 'history'] as const).map(t => (

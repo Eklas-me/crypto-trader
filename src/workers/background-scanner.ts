@@ -5,6 +5,7 @@ import { DEFAULT_WATCHLIST, DEFAULT_SETTINGS } from '@/engine/types';
 import { connectDB } from '@/lib/db';
 import SettingsModel from '@/models/Settings';
 import SignalModel from '@/models/Signal';
+import TradeModel from '@/models/Trade';
 
 // In-memory cache to prevent duplicate signals for the same coin on the same candle
 const lastSignalSent: Record<string, number> = {};
@@ -60,10 +61,36 @@ export async function runBackgroundScan() {
         // Save to Database
         try {
           await SignalModel.create(signal);
+
+          // Auto Paper-Trading Entry
+          const riskSettings = settings.riskSettings;
+          const riskDollars = (riskSettings.totalCapital * riskSettings.riskPerTrade) / 100;
+          const slDistance = Math.abs(signal.entryPriceHigh - signal.stopLoss);
+          const quantity = riskDollars / slDistance;
+
+          await TradeModel.create({
+            id: signal.id,
+            coin: signal.coin,
+            direction: signal.direction,
+            entryPrice: signal.entryPriceHigh, // simplified entry
+            exitPrice: null,
+            quantity: quantity,
+            stopLoss: signal.stopLoss,
+            takeProfit: signal.tp1, // targeting tp1 for auto trade
+            entryTime: Date.now(),
+            exitTime: null,
+            pnl: null,
+            pnlPercent: null,
+            status: 'OPEN',
+            signalGrade: signal.grade,
+            notes: `Auto Entry (${signal.timeframe})`,
+          });
+          console.log(`[Scanner] Auto Trade Opened for ${coin} - Qty: ${quantity.toFixed(4)}`);
+
         } catch (dbError: any) {
           // ignore unique constraint errors if signal was already saved
           if (dbError.code !== 11000) {
-            console.error('[Scanner] Failed to save signal to DB:', dbError);
+            console.error('[Scanner] Failed to save signal/trade to DB:', dbError);
           }
         }
 
