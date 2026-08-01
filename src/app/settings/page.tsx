@@ -174,6 +174,27 @@ export default function SettingsPage() {
             </div>
           </div>
 
+          {/* AI Settings */}
+          <div className="glass-card p-4">
+            <h2 className="text-sm font-semibold mb-3">🧠 AI Brain Settings</h2>
+            <p className="text-xs mb-3" style={{ color: 'var(--foreground-muted)' }}>
+              Enable intelligent market briefings and analysis by providing a Google Gemini API Key. (Gemini 1.5 Flash is recommended)
+            </p>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs mb-1 block" style={{ color: 'var(--foreground-muted)' }}>Gemini API Key</label>
+                <input
+                  type="password"
+                  value={local.geminiApiKey}
+                  onChange={e => setLocal(p => ({ ...p, geminiApiKey: e.target.value }))}
+                  placeholder="AIzaSy..."
+                  className="w-full px-3 py-2 rounded-lg text-sm font-mono"
+                  style={{ background: 'var(--background-tertiary)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
+                />
+              </div>
+            </div>
+          </div>
+
           {/* Telegram */}
           <div className="glass-card p-4">
             <h2 className="text-sm font-semibold mb-3">📱 Telegram Notifications</h2>

@@ -508,6 +508,7 @@ export interface AppSettings {
   };
   telegramChatId: string;
   telegramBotToken: string;
+  geminiApiKey: string;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -544,4 +545,5 @@ export const DEFAULT_SETTINGS: AppSettings = {
   },
   telegramChatId: '',
   telegramBotToken: '',
+  geminiApiKey: '',
 };

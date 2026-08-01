@@ -2,12 +2,56 @@ import TelegramBot from 'node-telegram-bot-api';
 import type { Signal } from '@/engine/types';
 
 let bot: TelegramBot | null = null;
+let isPollingStarted = false;
 
 export function getTelegramBot(token: string) {
   if (!bot && token) {
     bot = new TelegramBot(token, { polling: false });
   }
   return bot;
+}
+
+export function startTelegramPolling(token: string, onAnalyze: (chatId: string, coin: string) => void) {
+  if (!token) return;
+  
+  if (!bot) {
+    bot = new TelegramBot(token, { polling: true });
+    isPollingStarted = true;
+  } else if (!isPollingStarted) {
+    bot.stopPolling().then(() => bot?.startPolling());
+    isPollingStarted = true;
+  }
+
+  // Handle /analyze command
+  bot.onText(/\/analyze (.+)/, (msg, match) => {
+    const chatId = msg.chat.id.toString();
+    const coin = match?.[1]?.toUpperCase() || '';
+    
+    if (coin) {
+      bot?.sendMessage(chatId, `⏳ Analyzing ${coin}... Please wait a moment.`, { parse_mode: 'Markdown' });
+      onAnalyze(chatId, coin);
+    } else {
+      bot?.sendMessage(chatId, '❌ Please provide a coin. Example: `/analyze BTCUSDT`', { parse_mode: 'Markdown' });
+    }
+  });
+
+  bot.on('polling_error', (error) => {
+    console.error('Telegram Polling Error:', error);
+  });
+}
+
+export async function sendMarketBriefing(chatId: string, token: string, text: string) {
+  if (!chatId || !token) return false;
+  const botInstance = getTelegramBot(token);
+  if (!botInstance) return false;
+  
+  try {
+    await botInstance.sendMessage(chatId, text, { parse_mode: 'Markdown' });
+    return true;
+  } catch (error) {
+    console.error('Failed to send Telegram briefing:', error);
+    return false;
+  }
 }
 
 export async function sendTelegramSignal(chatId: string, token: string, signal: Signal) {
@@ -42,7 +86,7 @@ _Automated alert from CryptoTrader Pro_
     await botInstance.sendMessage(chatId, message, { parse_mode: 'Markdown' });
     return true;
   } catch (error) {
-    console.error('Failed to send Telegram message:', error);
+    console.error('Failed to send Telegram signal:', error);
     return false;
   }
 }

@@ -1,6 +1,7 @@
 import { fetchKlines } from '@/services/binance-api';
 import { generateSignal } from '@/engine/signal-engine';
-import { sendTelegramSignal } from '@/services/telegram';
+import { sendTelegramSignal, sendMarketBriefing } from '@/services/telegram';
+import { generateMarketBriefing } from '@/services/ai';
 import { DEFAULT_WATCHLIST, DEFAULT_SETTINGS } from '@/engine/types';
 import { connectDB } from '@/lib/db';
 import SettingsModel from '@/models/Settings';
@@ -10,6 +11,7 @@ import { incrementScanCount } from '@/lib/status-tracker';
 
 // In-memory cache to prevent duplicate signals for the same coin on the same candle
 const lastSignalSent: Record<string, number> = {};
+const lastAlertSent: Record<string, number> = {};
 
 export async function runBackgroundScan() {
   incrementScanCount();
@@ -54,6 +56,30 @@ export async function runBackgroundScan() {
       });
 
       if (!signal) continue;
+
+      const lastCandle = candles[candles.length - 1];
+      const movePercent = Math.abs(lastCandle.close - lastCandle.open) / lastCandle.open * 100;
+
+      // AI Alert for Sudden Market Shifts (>= 1.5% in 1 candle)
+      if (movePercent >= 1.5 && settings.geminiApiKey && token && chatId) {
+        if (!lastAlertSent[coin] || Date.now() - lastAlertSent[coin] > 3600000) { // Max 1 alert per hour per coin
+          console.log(`[Scanner] 🚨 Sudden ${movePercent.toFixed(2)}% move detected for ${coin}. Triggering AI Alert.`);
+          const aiResponse = await generateMarketBriefing(settings.geminiApiKey, {
+            coin: signal.coin,
+            price: lastCandle.close,
+            timeframe: signal.timeframe,
+            layers: signal.layers,
+            confidence: signal.confidence,
+            direction: signal.direction,
+            grade: signal.grade
+          }, true);
+
+          if (aiResponse) {
+            await sendMarketBriefing(chatId, token, aiResponse);
+            lastAlertSent[coin] = Date.now();
+          }
+        }
+      }
 
       // 3. Filter for A or B grade, and ACTIVE
       if (signal.status === 'ACTIVE' && (signal.grade === 'A' || signal.grade === 'B')) {
