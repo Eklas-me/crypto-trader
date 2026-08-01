@@ -178,7 +178,7 @@ export default function SettingsPage() {
           <div className="glass-card p-4">
             <h2 className="text-sm font-semibold mb-3">🧠 AI Brain Settings</h2>
             <p className="text-xs mb-3" style={{ color: 'var(--foreground-muted)' }}>
-              Enable intelligent market briefings and analysis by providing a Google Gemini API Key. (Gemini 1.5 Flash is recommended)
+              Enable intelligent market briefings and analysis by providing a Google Gemini API Key. (Gemini 3.5 Flash is recommended)
             </p>
             <div className="space-y-3">
               <div>

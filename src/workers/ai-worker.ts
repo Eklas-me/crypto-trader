@@ -35,7 +35,8 @@ export async function startAIBrain() {
             return;
           }
 
-          const signal = generateSignal({ 
+          const { getMarketDirection } = await import('@/engine/signal-engine');
+          const marketStatus = getMarketDirection({ 
             coin, 
             timeframe: '1h', 
             candles, 
@@ -43,16 +44,14 @@ export async function startAIBrain() {
             riskSettings: currentSettings.riskSettings || DEFAULT_SETTINGS.riskSettings 
           });
 
-          if (!signal) return;
-
           const aiResponse = await generateMarketBriefing(currentSettings.geminiApiKey, {
-            coin: signal.coin,
+            coin: coin,
             price: candles[candles.length - 1].close,
-            timeframe: signal.timeframe,
-            layers: signal.layers,
-            confidence: signal.confidence,
-            direction: signal.direction,
-            grade: signal.grade
+            timeframe: '1h',
+            layers: marketStatus.layerBreakdown,
+            confidence: marketStatus.probability,
+            direction: marketStatus.direction,
+            grade: 'N/A' // No strict trade grade needed for general analysis
           });
 
           if (aiResponse) {
@@ -83,7 +82,8 @@ export async function startAIBrain() {
           
           if (!candles) return;
           
-          const signal = generateSignal({ 
+          const { getMarketDirection } = await import('@/engine/signal-engine');
+          const marketStatus = getMarketDirection({ 
             coin, 
             timeframe: '1h', 
             candles, 
@@ -91,22 +91,20 @@ export async function startAIBrain() {
             riskSettings: currentSettings.riskSettings || DEFAULT_SETTINGS.riskSettings 
           });
           
-          if (signal) {
-            const aiResponse = await generateMarketBriefing(currentSettings.geminiApiKey, {
-              coin: signal.coin,
-              price: candles[candles.length - 1].close,
-              timeframe: signal.timeframe,
-              layers: signal.layers,
-              confidence: signal.confidence,
-              direction: signal.direction,
-              grade: signal.grade
-            });
+          const aiResponse = await generateMarketBriefing(currentSettings.geminiApiKey, {
+            coin: coin,
+            price: candles[candles.length - 1].close,
+            timeframe: '1h',
+            layers: marketStatus.layerBreakdown,
+            confidence: marketStatus.probability,
+            direction: marketStatus.direction,
+            grade: 'N/A'
+          });
 
-            if (aiResponse) {
+          if (aiResponse) {
               await sendMarketBriefing(currentChatId, currentToken, '🌅 *Scheduled Market Briefing*\n\n' + aiResponse);
             }
           }
-        }
       } catch (error) {
         console.error('[AI Brain] Scheduled Briefing Error:', error);
       }
