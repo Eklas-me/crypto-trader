@@ -45,12 +45,23 @@ export async function sendMarketBriefing(chatId: string, token: string, text: st
   const botInstance = getTelegramBot(token);
   if (!botInstance) return false;
   
+  // Convert standard markdown to Telegram-friendly markdown
+  // AI usually outputs **bold**, Telegram expects *bold*
+  let formattedText = text.replace(/\*\*(.*?)\*\*/g, '*$1*');
+  
   try {
-    await botInstance.sendMessage(chatId, text, { parse_mode: 'Markdown' });
+    await botInstance.sendMessage(chatId, formattedText, { parse_mode: 'Markdown' });
     return true;
-  } catch (error) {
-    console.error('Failed to send Telegram briefing:', error);
-    return false;
+  } catch (error: any) {
+    console.error('Markdown parsing failed, falling back to plain text. Error:', error.message);
+    try {
+      // Fallback: send without parse_mode so it doesn't crash if entities are broken
+      await botInstance.sendMessage(chatId, text);
+      return true;
+    } catch (fallbackError) {
+      console.error('Failed to send Telegram briefing entirely:', fallbackError);
+      return false;
+    }
   }
 }
 
