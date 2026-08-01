@@ -604,6 +604,13 @@ export function generateSignal(input: SignalInput): Signal | null {
   const recentCandlePatterns = allPatterns.candlestick.filter(p => p.index >= candles.length - 5);
   const recentChartPatterns = allPatterns.chart.filter(p => p.index >= candles.length - 20);
 
+function formatPricePrecision(price: number): number {
+  if (price >= 1000) return Math.round(price * 10) / 10;
+  if (price >= 100) return Math.round(price * 100) / 100;
+  if (price >= 1) return Math.round(price * 10000) / 10000;
+  return Math.round(price * 1000000) / 1000000;
+}
+
   const signal: Signal = {
     id: `${coin}-${timeframe}-${Date.now()}`,
     coin,
@@ -613,12 +620,12 @@ export function generateSignal(input: SignalInput): Signal | null {
     confidence,
     layersAgreed,
     layers,
-    entryPriceLow: Math.round(entryPriceLow * 100) / 100,
-    entryPriceHigh: Math.round(entryPriceHigh * 100) / 100,
-    stopLoss: Math.round(stopLoss * 100) / 100,
-    tp1: Math.round(tp1 * 100) / 100,
-    tp2: Math.round(tp2 * 100) / 100,
-    tp3: Math.round(tp3 * 100) / 100,
+    entryPriceLow: formatPricePrecision(entryPriceLow),
+    entryPriceHigh: formatPricePrecision(entryPriceHigh),
+    stopLoss: formatPricePrecision(stopLoss),
+    tp1: formatPricePrecision(tp1),
+    tp2: formatPricePrecision(tp2),
+    tp3: formatPricePrecision(tp3),
     riskRewardRatio: Math.round(riskRewardRatio * 10) / 10,
     candlePatterns: recentCandlePatterns,
     chartPatterns: recentChartPatterns,

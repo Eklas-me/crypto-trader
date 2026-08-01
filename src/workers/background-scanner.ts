@@ -70,7 +70,10 @@ export async function runBackgroundScan() {
           // Auto Paper-Trading Entry
           const riskSettings = settings.riskSettings;
           const riskDollars = (riskSettings.totalCapital * riskSettings.riskPerTrade) / 100;
-          const slDistance = Math.abs(signal.entryPriceHigh - signal.stopLoss);
+          let slDistance = Math.abs(signal.entryPriceHigh - signal.stopLoss);
+          if (!slDistance || slDistance <= 0 || isNaN(slDistance)) {
+            slDistance = signal.entryPriceHigh * 0.02; // 2% fallback distance
+          }
           const quantity = riskDollars / slDistance;
 
           await TradeModel.create({
