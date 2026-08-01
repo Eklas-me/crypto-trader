@@ -25,7 +25,7 @@ export async function generateMarketBriefing(apiKey: string, data: MarketData, i
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: 0.7,
-          maxOutputTokens: 800,
+          maxOutputTokens: 2500,
         }
       })
     });
