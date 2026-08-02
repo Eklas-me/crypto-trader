@@ -337,6 +337,7 @@ export interface SessionInfo {
 
 export type SignalGrade = 'A' | 'B' | 'C' | 'NONE';
 export type SignalDirection = 'BUY' | 'SELL' | 'HOLD';
+export type TradeType = 'SCALPING' | 'INTRADAY' | 'SWING';
 
 export interface LayerResult {
   name: string;
@@ -351,6 +352,7 @@ export interface Signal {
   timeframe: Timeframe;
   direction: SignalDirection;
   grade: SignalGrade;
+  tradeType: TradeType;      // SCALPING | INTRADAY | SWING
   confidence: number;        // 0-100
   layersAgreed: number;      // out of 12
   layers: LayerResult[];

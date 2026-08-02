@@ -4,7 +4,7 @@
 // ============================================================================
 
 import type {
-  Candle, Signal, SignalGrade, SignalDirection, LayerResult,
+  Candle, Signal, SignalGrade, SignalDirection, TradeType, LayerResult,
   Timeframe, FearGreedData, FuturesSentiment, MarketCorrelation,
   OrderBookAnalysis, RiskSettings,
 } from './types';
@@ -534,10 +534,10 @@ export function generateSignal(input: SignalInput): Signal | null {
   let direction: SignalDirection = 'HOLD';
   let layersAgreed = 0;
 
-  if (bullishCount > bearishCount && bullishCount >= 5) {
+  if (bullishCount > bearishCount && bullishCount >= 4) {
     direction = 'BUY';
     layersAgreed = bullishCount;
-  } else if (bearishCount > bullishCount && bearishCount >= 5) {
+  } else if (bearishCount > bullishCount && bearishCount >= 4) {
     direction = 'SELL';
     layersAgreed = bearishCount;
   } else {
@@ -599,6 +599,17 @@ export function generateSignal(input: SignalInput): Signal | null {
     return null;
   }
 
+  // Determine Trade Type based on ATR%, confluence, and grade
+  const atrPercent = (atrValue / currentPrice) * 100;
+  let tradeType: TradeType;
+  if (layersAgreed >= 7 && atrPercent > 0.8) {
+    tradeType = 'SWING';
+  } else if (layersAgreed >= 5 || atrPercent >= 0.3) {
+    tradeType = 'INTRADAY';
+  } else {
+    tradeType = 'SCALPING';
+  }
+
   // Get detected patterns
   const allPatterns = detectAllPatterns(candles);
   const recentCandlePatterns = allPatterns.candlestick.filter(p => p.index >= candles.length - 5);
@@ -617,6 +628,7 @@ function formatPricePrecision(price: number): number {
     timeframe,
     direction,
     grade,
+    tradeType,
     confidence,
     layersAgreed,
     layers,

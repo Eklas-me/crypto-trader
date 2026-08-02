@@ -1,7 +1,7 @@
 import { fetchKlines } from '@/services/binance-api';
 import { generateSignal } from '@/engine/signal-engine';
 import { sendTelegramSignal, sendMarketBriefing } from '@/services/telegram';
-import { generateMarketBriefing } from '@/services/ai';
+import { generateMarketBriefing, generateSignalAnalysis } from '@/services/ai';
 import { DEFAULT_WATCHLIST, DEFAULT_SETTINGS } from '@/engine/types';
 import { connectDB } from '@/lib/db';
 import SettingsModel from '@/models/Settings';
@@ -52,7 +52,10 @@ export async function runBackgroundScan() {
         timeframe, 
         candles, 
         htfCandles,
-        riskSettings: settings.riskSettings || DEFAULT_SETTINGS.riskSettings 
+        riskSettings: {
+          ...(settings.riskSettings || DEFAULT_SETTINGS.riskSettings),
+          minRiskReward: Math.min(settings.riskSettings?.minRiskReward ?? 2, 1.5), // cap at 1.5 for better sensitivity
+        }
       });
 
       if (!signal) continue;
@@ -81,8 +84,8 @@ export async function runBackgroundScan() {
         }
       }
 
-      // 3. Filter for A or B grade, and ACTIVE
-      if (signal.status === 'ACTIVE' && (signal.grade === 'A' || signal.grade === 'B')) {
+      // 3. Filter for A, B, or C grade
+      if (signal.status === 'ACTIVE' && (signal.grade === 'A' || signal.grade === 'B' || signal.grade === 'C')) {
         
         // Prevent sending the exact same signal multiple times
         if (lastSignalSent[coin] === signal.timestamp) continue;
@@ -133,7 +136,20 @@ export async function runBackgroundScan() {
           const success = await sendTelegramSignal(chatId, token, signal);
           if (success) {
             lastSignalSent[coin] = signal.timestamp;
-            console.log(`[Scanner] Telegram alert sent for ${coin}`);
+            console.log(`[Scanner] Telegram signal sent for ${coin}`);
+
+            // 5. Send AI Analysis as follow-up message (if API key set)
+            if (settings.geminiApiKey) {
+              try {
+                const currentPrice = candles[candles.length - 1].close;
+                const aiAnalysis = await generateSignalAnalysis(settings.geminiApiKey, signal, currentPrice);
+                if (aiAnalysis) {
+                  await sendMarketBriefing(chatId, token, `🤖 *AI Signal Analysis*\n\n${aiAnalysis}`);
+                }
+              } catch (aiError) {
+                console.error('[Scanner] AI analysis failed:', aiError);
+              }
+            }
           }
         } else {
           lastSignalSent[coin] = signal.timestamp;

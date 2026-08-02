@@ -74,8 +74,13 @@ export async function sendTelegramSignal(chatId: string, token: string, signal: 
   const isBuy = signal.direction === 'BUY';
   const emoji = isBuy ? '🟢' : '🔴';
   
+  const tradeTypeLabel = signal.tradeType === 'SCALPING' ? '⚡ Scalping'
+    : signal.tradeType === 'INTRADAY' ? '📈 Intraday'
+    : '🌊 Swing';
+  
   const message = `
 ${emoji} *${signal.grade}-GRADE SIGNAL: ${signal.coin}* ${emoji}
+${tradeTypeLabel} Trade
 
 *Direction:* ${isBuy ? 'LONG (Buy)' : 'SHORT (Sell)'}
 *Timeframe:* ${signal.timeframe}
