@@ -534,10 +534,10 @@ export function generateSignal(input: SignalInput): Signal | null {
   let direction: SignalDirection = 'HOLD';
   let layersAgreed = 0;
 
-  if (bullishCount > bearishCount && bullishCount >= 4) {
+  if (bullishCount > bearishCount && bullishCount >= 5) {
     direction = 'BUY';
     layersAgreed = bullishCount;
-  } else if (bearishCount > bullishCount && bearishCount >= 4) {
+  } else if (bearishCount > bullishCount && bearishCount >= 5) {
     direction = 'SELL';
     layersAgreed = bearishCount;
   } else {

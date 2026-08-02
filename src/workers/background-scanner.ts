@@ -1,4 +1,4 @@
-import { fetchKlines } from '@/services/binance-api';
+import { fetchKlines, fetchOrderBook, fetchFuturesSentiment } from '@/services/binance-api';
 import { generateSignal } from '@/engine/signal-engine';
 import { sendTelegramSignal, sendMarketBriefing } from '@/services/telegram';
 import { generateMarketBriefing, generateSignalAnalysis } from '@/services/ai';
@@ -40,11 +40,14 @@ export async function runBackgroundScan() {
 
   for (const coin of watchlist) {
     try {
-      // 1. Fetch data (1h for entry, 4h for HTF trend)
-      const candles = await fetchKlines(coin, timeframe, 200);
+      const [candles, htfCandles, orderBook, futures] = await Promise.all([
+        fetchKlines(coin, timeframe, 200),
+        fetchKlines(coin, '4h', 100).catch(() => undefined),
+        fetchOrderBook(coin).catch(() => undefined),
+        fetchFuturesSentiment(coin).catch(() => undefined)
+      ]);
+      
       if (!candles || candles.length < 50) continue;
-
-      const htfCandles = await fetchKlines(coin, '4h', 100).catch(() => undefined);
 
       // 2. Generate signal with MTF alignment
       const signal = generateSignal({ 
@@ -52,6 +55,8 @@ export async function runBackgroundScan() {
         timeframe, 
         candles, 
         htfCandles,
+        orderBook,
+        futures,
         riskSettings: {
           ...(settings.riskSettings || DEFAULT_SETTINGS.riskSettings),
           minRiskReward: Math.min(settings.riskSettings?.minRiskReward ?? 2, 1.5), // cap at 1.5 for better sensitivity
@@ -84,8 +89,8 @@ export async function runBackgroundScan() {
         }
       }
 
-      // 3. Filter for A, B, or C grade
-      if (signal.status === 'ACTIVE' && (signal.grade === 'A' || signal.grade === 'B' || signal.grade === 'C')) {
+      // 3. Filter for A or B grade
+      if (signal.status === 'ACTIVE' && (signal.grade === 'A' || signal.grade === 'B')) {
         
         // Prevent sending the exact same signal multiple times
         if (lastSignalSent[coin] === signal.timestamp) continue;
@@ -160,6 +165,77 @@ export async function runBackgroundScan() {
     }
     
     // Add small delay to respect rate limits
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  // ---------------------------------------------------------
+  // 2. FAST SCAN: 15m timeframe for Major Coins only
+  // ---------------------------------------------------------
+  const majors = ['ETHUSDT', 'BNBUSDT', 'XRPUSDT'];
+  const fastTimeframe = '15m';
+
+  for (const coin of majors) {
+    if (!watchlist.includes(coin)) continue; // Only scan if it's actually in user's watchlist
+
+    try {
+      const [candles, htfCandles, orderBook, futures] = await Promise.all([
+        fetchKlines(coin, fastTimeframe, 200),
+        fetchKlines(coin, '1h', 100).catch(() => undefined), // 1h is HTF for 15m
+        fetchOrderBook(coin).catch(() => undefined),
+        fetchFuturesSentiment(coin).catch(() => undefined)
+      ]);
+
+      if (!candles || candles.length < 50) continue;
+
+      const signal = generateSignal({ 
+        coin, 
+        timeframe: fastTimeframe, 
+        candles, 
+        htfCandles,
+        orderBook,
+        futures,
+        riskSettings: {
+          ...(settings.riskSettings || DEFAULT_SETTINGS.riskSettings),
+          minRiskReward: Math.min(settings.riskSettings?.minRiskReward ?? 2, 1.5),
+        }
+      });
+
+      if (!signal) continue;
+
+      if (signal.status === 'ACTIVE' && (signal.grade === 'A' || signal.grade === 'B')) {
+        if (lastSignalSent[coin] === signal.timestamp) continue;
+        
+        console.log(`[Scanner] ${signal.grade}-Grade ${signal.direction} signal (15m) found for ${coin}!`);
+        
+        try {
+          await SignalModel.create(signal);
+        } catch (dbError: any) {
+          if (dbError.code !== 11000) console.error('[Scanner] Failed to save 15m signal:', dbError);
+        }
+
+        if (token && chatId) {
+          const success = await sendTelegramSignal(chatId, token, signal);
+          if (success) {
+            lastSignalSent[coin] = signal.timestamp;
+            console.log(`[Scanner] Telegram signal sent for ${coin} (15m)`);
+
+            if (settings.geminiApiKey) {
+              try {
+                const currentPrice = candles[candles.length - 1].close;
+                const aiAnalysis = await generateSignalAnalysis(settings.geminiApiKey, signal, currentPrice);
+                if (aiAnalysis) {
+                  await sendMarketBriefing(chatId, token, `🤖 *AI Signal Analysis*\n\n${aiAnalysis}`);
+                }
+              } catch (aiError) {
+                console.error('[Scanner] AI analysis failed:', aiError);
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`[Scanner] Error analyzing ${coin} on 15m:`, error);
+    }
     await new Promise(resolve => setTimeout(resolve, 500));
   }
   
