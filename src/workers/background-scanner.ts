@@ -206,11 +206,39 @@ export async function runBackgroundScan() {
         if (lastSignalSent[coin] === signal.timestamp) continue;
         
         console.log(`[Scanner] ${signal.grade}-Grade ${signal.direction} signal (15m) found for ${coin}!`);
-        
         try {
           await SignalModel.create(signal);
+          
+          // Auto Paper-Trading Entry for 15m
+          const riskSettings = settings.riskSettings;
+          const riskDollars = (riskSettings.totalCapital * riskSettings.riskPerTrade) / 100;
+          let slDistance = Math.abs(signal.entryPriceHigh - signal.stopLoss);
+          if (!slDistance || slDistance <= 0 || isNaN(slDistance)) {
+            slDistance = signal.entryPriceHigh * 0.02; // 2% fallback distance
+          }
+          const quantity = riskDollars / slDistance;
+
+          await TradeModel.create({
+            id: signal.id,
+            coin: signal.coin,
+            direction: signal.direction,
+            entryPrice: signal.entryPriceHigh, // simplified entry
+            exitPrice: null,
+            quantity: quantity,
+            stopLoss: signal.stopLoss,
+            takeProfit: signal.tp1, // targeting tp1 for auto trade
+            entryTime: Date.now(),
+            exitTime: null,
+            pnl: null,
+            pnlPercent: null,
+            status: 'OPEN',
+            signalGrade: signal.grade,
+            notes: `Auto Entry (${signal.timeframe})`,
+          });
+          console.log(`[Scanner] Auto Trade Opened for ${coin} (15m) - Qty: ${quantity.toFixed(4)}`);
+
         } catch (dbError: any) {
-          if (dbError.code !== 11000) console.error('[Scanner] Failed to save 15m signal:', dbError);
+          if (dbError.code !== 11000) console.error('[Scanner] Failed to save 15m signal/trade:', dbError);
         }
 
         if (token && chatId) {
