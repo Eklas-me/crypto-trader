@@ -138,15 +138,21 @@ export function useDataFeed() {
 
   // ── Live price WebSocket ──────────────────────────────────────────────────
   useEffect(() => {
-    const symbol = selectedCoin.toLowerCase();
-    const ws = new WebSocket(
-      `wss://stream.binance.com:9443/ws/${symbol}@miniTicker`,
-    );
+    const ws = new WebSocket('wss://stream.binance.com:9443/ws/!miniTicker@arr');
 
     ws.onmessage = (evt) => {
       try {
         const data = JSON.parse(evt.data);
-        setLivePrice(selectedCoin, parseFloat(data.c));
+        if (Array.isArray(data)) {
+          const state = useAppStore.getState();
+          const targetCoins = new Set([state.selectedCoin, ...state.settings.watchlist]);
+          
+          data.forEach(ticker => {
+            if (targetCoins.has(ticker.s) || state.livePrices[ticker.s]) {
+              setLivePrice(ticker.s, parseFloat(ticker.c));
+            }
+          });
+        }
       } catch { /* ignore */ }
     };
 
@@ -155,7 +161,7 @@ export function useDataFeed() {
     return () => {
       if (ws.readyState === WebSocket.OPEN) ws.close();
     };
-  }, [selectedCoin, setLivePrice]);
+  }, [setLivePrice]);
 
   return { runAnalysis };
 }

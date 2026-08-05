@@ -6,7 +6,7 @@ import { useAppStore } from '@/store/app-store';
 import { Trade } from '@/engine/types';
 
 export default function JournalPage() {
-  const { settings } = useAppStore();
+  const { settings, livePrices, setLivePrice } = useAppStore();
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -31,6 +31,14 @@ export default function JournalPage() {
     return () => clearInterval(t);
   }, []);
 
+  useEffect(() => {
+    trades.filter(t => t.status === 'OPEN').forEach(t => {
+      if (!livePrices[t.coin]) {
+        setLivePrice(t.coin, t.entryPrice);
+      }
+    });
+  }, [trades, livePrices, setLivePrice]);
+
   const clearJournal = async () => {
     if (!confirm('Are you sure you want to clear all paper-trading history?')) return;
     try {
@@ -43,11 +51,23 @@ export default function JournalPage() {
 
   const closedTrades = trades.filter(t => t.status !== 'OPEN');
   const openTrades = trades.filter(t => t.status === 'OPEN');
-  const totalPnl = closedTrades.reduce((sum, t) => sum + (t.pnl ?? 0), 0);
+  
+  const getTradePnl = (t: Trade) => {
+    if (t.status !== 'OPEN') return t.pnl;
+    const currentPrice = livePrices[t.coin];
+    if (!currentPrice) return 0;
+    const diff = t.direction === 'BUY' ? currentPrice - t.entryPrice : t.entryPrice - currentPrice;
+    return diff * t.quantity;
+  };
+
+  const closedPnl = closedTrades.reduce((sum, t) => sum + (t.pnl ?? 0), 0);
+  const openPnl = openTrades.reduce((sum, t) => sum + (getTradePnl(t) ?? 0), 0);
+  const totalPnl = closedPnl + openPnl;
+
   const wins = closedTrades.filter(t => (t.pnl ?? 0) > 0).length;
   const winRate = closedTrades.length > 0 ? Math.round((wins / closedTrades.length) * 100) : 0;
   
-  const balance = settings.riskSettings.totalCapital;
+  const balance = settings.riskSettings.totalCapital + totalPnl;
 
   return (
     <div className="h-full flex flex-col p-4 gap-4 overflow-hidden">
@@ -114,7 +134,9 @@ export default function JournalPage() {
             {!loading && trades.length === 0 && (
               <tr><td colSpan={11} className="text-center py-8 text-gray-500">No trades yet. Waiting for automated signals...</td></tr>
             )}
-            {trades.map(t => (
+            {trades.map(t => {
+              const currentPnl = getTradePnl(t);
+              return (
               <tr key={t.id} className="transition-colors" style={{ borderBottom: '1px solid var(--border)' }}
                 onMouseEnter={e => (e.currentTarget.style.background = 'var(--background-tertiary)')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
@@ -127,8 +149,8 @@ export default function JournalPage() {
                 <td className="px-3 py-2 tabular-nums">{t.quantity.toFixed(4)}</td>
                 <td className="px-3 py-2 tabular-nums" style={{ color: 'var(--red)' }}>${t.stopLoss.toLocaleString()}</td>
                 <td className="px-3 py-2 tabular-nums" style={{ color: 'var(--green)' }}>${t.takeProfit.toLocaleString()}</td>
-                <td className="px-3 py-2 font-bold tabular-nums" style={{ color: t.pnl === null ? 'var(--foreground-muted)' : t.pnl >= 0 ? 'var(--green)' : 'var(--red)' }}>
-                  {t.pnl === null ? '—' : `${t.pnl >= 0 ? '+' : ''}$${t.pnl.toFixed(2)}`}
+                <td className="px-3 py-2 font-bold tabular-nums" style={{ color: currentPnl === null ? 'var(--foreground-muted)' : currentPnl >= 0 ? 'var(--green)' : 'var(--red)' }}>
+                  {currentPnl === null ? '—' : `${currentPnl >= 0 ? '+' : ''}$${currentPnl.toFixed(2)}`}
                 </td>
                 <td className="px-3 py-2">
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold"
@@ -144,7 +166,7 @@ export default function JournalPage() {
                 </td>
                 <td className="px-3 py-2 max-w-[150px] truncate" style={{ color: 'var(--foreground-muted)' }}>{t.notes}</td>
               </tr>
-            ))}
+            )})}
           </tbody>
         </table>
       </div>

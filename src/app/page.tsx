@@ -42,7 +42,7 @@ export default function Home() {
         <Header onRefresh={handleRefresh} />
 
         {/* Page Content */}
-        <main className="flex-1 overflow-hidden">
+        <main className="flex-1 overflow-hidden flex flex-col relative">
           {activeTab === 'dashboard' && <DashboardLayout />}
           {activeTab === 'scanner'   && <ScannerPage />}
           {activeTab === 'journal'   && <JournalPage />}
