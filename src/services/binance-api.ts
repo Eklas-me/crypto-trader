@@ -38,6 +38,30 @@ export async function fetchKlines(
   }));
 }
 
+// ─── Historical Range Data ──────────────────────────────────────────────────
+
+export async function fetchHistoricalRange(
+  symbol: string,
+  interval: Timeframe | '1d',
+  startTime: number,
+  endTime: number,
+): Promise<Candle[]> {
+  const url = `${BINANCE_SPOT_BASE}/api/v3/klines?symbol=${symbol}&interval=${interval}&startTime=${startTime}&endTime=${endTime}&limit=1000`;
+  const res = await fetch(url);
+
+  if (!res.ok) throw new Error(`Binance API error: ${res.status}`);
+  const data = await res.json();
+
+  return data.map((k: number[]) => ({
+    time: Math.floor(k[0] / 1000), // Convert ms to seconds
+    open: parseFloat(k[1] as unknown as string),
+    high: parseFloat(k[2] as unknown as string),
+    low: parseFloat(k[3] as unknown as string),
+    close: parseFloat(k[4] as unknown as string),
+    volume: parseFloat(k[5] as unknown as string),
+  }));
+}
+
 // ─── 24h Ticker ─────────────────────────────────────────────────────────────
 
 export interface TickerData {

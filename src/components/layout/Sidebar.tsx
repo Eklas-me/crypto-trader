@@ -3,13 +3,14 @@
 import { useAppStore } from '@/store/app-store';
 import {
   LayoutDashboard, Search, BookOpen, ClipboardList,
-  Settings, TrendingUp, Zap,
+  Settings, TrendingUp, Activity,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
   { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { id: 'scanner', icon: Search, label: 'Scanner' },
   { id: 'journal', icon: BookOpen, label: 'Journal' },
+  { id: 'tracker', icon: Activity, label: 'Range Tracker' },
   { id: 'plan', icon: ClipboardList, label: 'Trading Plan' },
   { id: 'settings', icon: Settings, label: 'Settings' },
 ] as const;

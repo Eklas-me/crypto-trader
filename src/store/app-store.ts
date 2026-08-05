@@ -65,7 +65,7 @@ interface AppState {
   setCorrelation: (data: MarketCorrelation) => void;
 
   // ── UI State
-  activeTab: 'dashboard' | 'scanner' | 'journal' | 'plan' | 'settings';
+  activeTab: 'dashboard' | 'scanner' | 'journal' | 'plan' | 'settings' | 'tracker';
   setActiveTab: (tab: AppState['activeTab']) => void;
 
   isLoading: boolean;

@@ -14,6 +14,7 @@ import { useEffect } from 'react';
 import dynamic from 'next/dynamic';
 const ScannerPage = dynamic(() => import('@/app/scanner/page'), { ssr: false });
 const JournalPage = dynamic(() => import('@/app/journal/page'), { ssr: false });
+const TrackerPage = dynamic(() => import('@/app/tracker/page'), { ssr: false });
 const PlanPage    = dynamic(() => import('@/app/plan/page'), { ssr: false });
 const SettingsPage = dynamic(() => import('@/app/settings/page'), { ssr: false });
 
@@ -45,6 +46,7 @@ export default function Home() {
           {activeTab === 'dashboard' && <DashboardLayout />}
           {activeTab === 'scanner'   && <ScannerPage />}
           {activeTab === 'journal'   && <JournalPage />}
+          {activeTab === 'tracker'   && <TrackerPage />}
           {activeTab === 'plan'      && <PlanPage />}
           {activeTab === 'settings'  && <SettingsPage />}
         </main>
