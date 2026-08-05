@@ -182,11 +182,12 @@ export async function fetchOrderBook(
 
 export async function fetchFundingRate(symbol: string): Promise<number> {
   try {
-    const url = `${BINANCE_FUTURES_BASE}/fapi/v1/fundingRate?symbol=${symbol}&limit=1`;
+    // ⚠️ Proxy through Next.js API to avoid CORS in production
+    const url = `/api/futures?endpoint=fundingRate&symbol=${symbol}`;
     const res = await fetch(url);
     if (!res.ok) return 0;
     const data = await res.json();
-    return data.length > 0 ? parseFloat(data[0].fundingRate) : 0;
+    return Array.isArray(data) && data.length > 0 ? parseFloat(data[0].fundingRate) : 0;
   } catch {
     return 0;
   }
@@ -196,7 +197,8 @@ export async function fetchFundingRate(symbol: string): Promise<number> {
 
 export async function fetchOpenInterest(symbol: string): Promise<number> {
   try {
-    const url = `${BINANCE_FUTURES_BASE}/fapi/v1/openInterest?symbol=${symbol}`;
+    // ⚠️ Proxy through Next.js API to avoid CORS in production
+    const url = `/api/futures?endpoint=openInterest&symbol=${symbol}`;
     const res = await fetch(url);
     if (!res.ok) return 0;
     const data = await res.json();
@@ -210,11 +212,12 @@ export async function fetchOpenInterest(symbol: string): Promise<number> {
 
 export async function fetchLongShortRatio(symbol: string): Promise<number> {
   try {
-    const url = `${BINANCE_FUTURES_BASE}/futures/data/topLongShortAccountRatio?symbol=${symbol}&period=1h&limit=1`;
+    // ⚠️ Proxy through Next.js API to avoid CORS in production
+    const url = `/api/futures?endpoint=longShort&symbol=${symbol}`;
     const res = await fetch(url);
     if (!res.ok) return 1;
     const data = await res.json();
-    return data.length > 0 ? parseFloat(data[0].longShortRatio) : 1;
+    return Array.isArray(data) && data.length > 0 ? parseFloat(data[0].longShortRatio) : 1;
   } catch {
     return 1;
   }

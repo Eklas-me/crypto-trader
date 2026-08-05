@@ -7,10 +7,16 @@ import { Activity, TrendingUp, AlertCircle, ArrowUpRight, ArrowDownRight } from 
 
 type RangePreset = '24h' | '7d' | '1m' | 'custom';
 
+const DEFAULT_COINS = [
+  { symbol: 'BTCUSDT' }, { symbol: 'ETHUSDT' }, { symbol: 'BNBUSDT' },
+  { symbol: 'SOLUSDT' }, { symbol: 'XRPUSDT' },
+];
+
 export default function TrackerPage() {
   const { watchlist, livePrices } = useAppStore();
+  const coinList = watchlist.length > 0 ? watchlist : DEFAULT_COINS;
   
-  const [selectedCoin, setSelectedCoin] = useState(watchlist[0]?.symbol || 'BTCUSDT');
+  const [selectedCoin, setSelectedCoin] = useState(coinList[0]?.symbol || 'BTCUSDT');
   const [preset, setPreset] = useState<RangePreset>('24h');
   
   // Dates for custom range
@@ -137,7 +143,7 @@ export default function TrackerPage() {
               onChange={(e) => setSelectedCoin(e.target.value)}
               className="w-full bg-[var(--surface-active)] border border-[var(--border)] rounded-lg px-4 py-2 text-sm outline-none focus:border-blue-500 transition-colors"
             >
-              {watchlist.map(c => (
+              {coinList.map(c => (
                 <option key={c.symbol} value={c.symbol}>{c.symbol.replace('USDT', '')}</option>
               ))}
             </select>
