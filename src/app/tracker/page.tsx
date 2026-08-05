@@ -14,7 +14,12 @@ const DEFAULT_COINS = [
 
 export default function TrackerPage() {
   const { watchlist, livePrices } = useAppStore();
-  const coinList = watchlist.length > 0 ? watchlist : DEFAULT_COINS;
+
+  // Strictly filter to only items that have a valid symbol string
+  const validWatchlist = watchlist.filter(
+    (c) => c && typeof c.symbol === 'string' && c.symbol.length > 0,
+  );
+  const coinList = validWatchlist.length > 0 ? validWatchlist : DEFAULT_COINS;
   
   const [selectedCoin, setSelectedCoin] = useState(coinList[0]?.symbol || 'BTCUSDT');
   const [preset, setPreset] = useState<RangePreset>('24h');
