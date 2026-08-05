@@ -92,47 +92,76 @@ export async function runBackgroundScan() {
       // 3. Filter for A or B grade
       if (signal.status === 'ACTIVE' && (signal.grade === 'A' || signal.grade === 'B')) {
         
-        // Prevent sending the exact same signal multiple times
+        // Prevent processing the exact same candle signal again (in-memory dedup)
         if (lastSignalSent[coin] === signal.timestamp) continue;
 
         console.log(`[Scanner] ${signal.grade}-Grade ${signal.direction} signal found for ${coin}!`);
+
+        // --- Guard: Check concurrent positions and existing open trade for this coin ---
+        let canOpenTrade = true;
+        try {
+          const openTrades = await TradeModel.find({ status: 'OPEN' });
+          const maxPositions = settings.riskSettings?.maxConcurrentPositions ?? 3;
+          if (openTrades.length >= maxPositions) {
+            console.log(`[Scanner] Max concurrent positions (${maxPositions}) reached. Skipping trade for ${coin}.`);
+            canOpenTrade = false;
+          }
+          const existingCoinTrade = openTrades.find((t: any) => t.coin === coin);
+          if (existingCoinTrade) {
+            console.log(`[Scanner] Already have an OPEN trade for ${coin}. Skipping duplicate.`);
+            canOpenTrade = false;
+          }
+        } catch {
+          canOpenTrade = true; // fallback: allow if check fails
+        }
         
-        // Save to Database
+        // Save Signal to Database
         try {
           await SignalModel.create(signal);
-
-          // Auto Paper-Trading Entry
-          const riskSettings = settings.riskSettings;
-          const riskDollars = (riskSettings.totalCapital * riskSettings.riskPerTrade) / 100;
-          let slDistance = Math.abs(signal.entryPriceHigh - signal.stopLoss);
-          if (!slDistance || slDistance <= 0 || isNaN(slDistance)) {
-            slDistance = signal.entryPriceHigh * 0.02; // 2% fallback distance
-          }
-          const quantity = riskDollars / slDistance;
-
-          await TradeModel.create({
-            id: signal.id,
-            coin: signal.coin,
-            direction: signal.direction,
-            entryPrice: signal.entryPriceHigh, // simplified entry
-            exitPrice: null,
-            quantity: quantity,
-            stopLoss: signal.stopLoss,
-            takeProfit: signal.tp1, // targeting tp1 for auto trade
-            entryTime: Date.now(),
-            exitTime: null,
-            pnl: null,
-            pnlPercent: null,
-            status: 'OPEN',
-            signalGrade: signal.grade,
-            notes: `Auto Entry (${signal.timeframe})`,
-          });
-          console.log(`[Scanner] Auto Trade Opened for ${coin} - Qty: ${quantity.toFixed(4)}`);
-
         } catch (dbError: any) {
-          // ignore unique constraint errors if signal was already saved
           if (dbError.code !== 11000) {
-            console.error('[Scanner] Failed to save signal/trade to DB:', dbError);
+            console.error('[Scanner] Failed to save signal to DB:', dbError);
+          }
+          // If signal already exists (11000), it's a duplicate candle — skip entirely
+          if (dbError.code === 11000) {
+            lastSignalSent[coin] = signal.timestamp; // Mark as seen
+            continue;
+          }
+        }
+
+        // Auto Paper-Trading Entry (only if guards pass)
+        if (canOpenTrade) {
+          try {
+            const riskSettings = settings.riskSettings;
+            const riskDollars = (riskSettings.totalCapital * riskSettings.riskPerTrade) / 100;
+            let slDistance = Math.abs(signal.entryPriceHigh - signal.stopLoss);
+            if (!slDistance || slDistance <= 0 || isNaN(slDistance)) {
+              slDistance = signal.entryPriceHigh * 0.02; // 2% fallback distance
+            }
+            const quantity = riskDollars / slDistance;
+
+            await TradeModel.create({
+              id: signal.id,
+              coin: signal.coin,
+              direction: signal.direction,
+              entryPrice: signal.entryPriceHigh,
+              exitPrice: null,
+              quantity: quantity,
+              stopLoss: signal.stopLoss,
+              takeProfit: signal.tp1,
+              entryTime: Date.now(),
+              exitTime: null,
+              pnl: null,
+              pnlPercent: null,
+              status: 'OPEN',
+              signalGrade: signal.grade,
+              notes: `Auto Entry (${signal.timeframe})`,
+            });
+            console.log(`[Scanner] Auto Trade Opened for ${coin} - Qty: ${quantity.toFixed(4)}`);
+          } catch (tradeError: any) {
+            if (tradeError.code !== 11000) {
+              console.error('[Scanner] Failed to open auto trade:', tradeError);
+            }
           }
         }
 
@@ -206,39 +235,68 @@ export async function runBackgroundScan() {
         if (lastSignalSent[coin] === signal.timestamp) continue;
         
         console.log(`[Scanner] ${signal.grade}-Grade ${signal.direction} signal (15m) found for ${coin}!`);
+
+        // --- Guard: Check concurrent positions and existing open trade for this coin ---
+        let canOpenTrade15m = true;
+        try {
+          const openTrades = await TradeModel.find({ status: 'OPEN' });
+          const maxPositions = settings.riskSettings?.maxConcurrentPositions ?? 3;
+          if (openTrades.length >= maxPositions) {
+            console.log(`[Scanner] Max concurrent positions (${maxPositions}) reached. Skipping 15m trade for ${coin}.`);
+            canOpenTrade15m = false;
+          }
+          const existingCoinTrade = openTrades.find((t: any) => t.coin === coin);
+          if (existingCoinTrade) {
+            console.log(`[Scanner] Already have an OPEN trade for ${coin}. Skipping 15m duplicate.`);
+            canOpenTrade15m = false;
+          }
+        } catch {
+          canOpenTrade15m = true;
+        }
+
+        // Save Signal to DB
         try {
           await SignalModel.create(signal);
-          
-          // Auto Paper-Trading Entry for 15m
-          const riskSettings = settings.riskSettings;
-          const riskDollars = (riskSettings.totalCapital * riskSettings.riskPerTrade) / 100;
-          let slDistance = Math.abs(signal.entryPriceHigh - signal.stopLoss);
-          if (!slDistance || slDistance <= 0 || isNaN(slDistance)) {
-            slDistance = signal.entryPriceHigh * 0.02; // 2% fallback distance
-          }
-          const quantity = riskDollars / slDistance;
-
-          await TradeModel.create({
-            id: signal.id,
-            coin: signal.coin,
-            direction: signal.direction,
-            entryPrice: signal.entryPriceHigh, // simplified entry
-            exitPrice: null,
-            quantity: quantity,
-            stopLoss: signal.stopLoss,
-            takeProfit: signal.tp1, // targeting tp1 for auto trade
-            entryTime: Date.now(),
-            exitTime: null,
-            pnl: null,
-            pnlPercent: null,
-            status: 'OPEN',
-            signalGrade: signal.grade,
-            notes: `Auto Entry (${signal.timeframe})`,
-          });
-          console.log(`[Scanner] Auto Trade Opened for ${coin} (15m) - Qty: ${quantity.toFixed(4)}`);
-
         } catch (dbError: any) {
-          if (dbError.code !== 11000) console.error('[Scanner] Failed to save 15m signal/trade:', dbError);
+          if (dbError.code !== 11000) console.error('[Scanner] Failed to save 15m signal:', dbError);
+          if (dbError.code === 11000) {
+            lastSignalSent[coin] = signal.timestamp;
+            continue;
+          }
+        }
+
+        // Auto Paper-Trading Entry (only if guards pass)
+        if (canOpenTrade15m) {
+          try {
+            const riskSettings = settings.riskSettings;
+            const riskDollars = (riskSettings.totalCapital * riskSettings.riskPerTrade) / 100;
+            let slDistance = Math.abs(signal.entryPriceHigh - signal.stopLoss);
+            if (!slDistance || slDistance <= 0 || isNaN(slDistance)) {
+              slDistance = signal.entryPriceHigh * 0.02;
+            }
+            const quantity = riskDollars / slDistance;
+
+            await TradeModel.create({
+              id: signal.id,
+              coin: signal.coin,
+              direction: signal.direction,
+              entryPrice: signal.entryPriceHigh,
+              exitPrice: null,
+              quantity: quantity,
+              stopLoss: signal.stopLoss,
+              takeProfit: signal.tp1,
+              entryTime: Date.now(),
+              exitTime: null,
+              pnl: null,
+              pnlPercent: null,
+              status: 'OPEN',
+              signalGrade: signal.grade,
+              notes: `Auto Entry (${signal.timeframe})`,
+            });
+            console.log(`[Scanner] Auto Trade Opened for ${coin} (15m) - Qty: ${quantity.toFixed(4)}`);
+          } catch (tradeError: any) {
+            if (tradeError.code !== 11000) console.error('[Scanner] Failed to open 15m auto trade:', tradeError);
+          }
         }
 
         if (token && chatId) {

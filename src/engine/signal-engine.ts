@@ -622,8 +622,13 @@ function formatPricePrecision(price: number): number {
   return Math.round(price * 1000000) / 1000000;
 }
 
+  // Use the last candle's close time as the signal ID base so that
+  // every 5-min scan of the SAME candle produces the SAME signal ID.
+  const lastCandleTime = candles[candles.length - 1].time; // Unix seconds
+  const signalId = `${coin}-${timeframe}-${lastCandleTime}`;
+
   const signal: Signal = {
-    id: `${coin}-${timeframe}-${Date.now()}`,
+    id: signalId,
     coin,
     timeframe,
     direction,
@@ -641,8 +646,8 @@ function formatPricePrecision(price: number): number {
     riskRewardRatio: Math.round(riskRewardRatio * 10) / 10,
     candlePatterns: recentCandlePatterns,
     chartPatterns: recentChartPatterns,
-    timestamp: Date.now(),
-    expiresAt: Date.now() + getExpiryMs(timeframe),
+    timestamp: lastCandleTime * 1000, // Convert to ms for consistency
+    expiresAt: lastCandleTime * 1000 + getExpiryMs(timeframe),
     status: 'ACTIVE',
   };
 
