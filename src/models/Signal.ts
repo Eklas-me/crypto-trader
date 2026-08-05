@@ -1,21 +1,28 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { SignalGrade, Timeframe } from '@/engine/types';
-import { MarketDirection } from '@/engine/signal-engine';
+import { SignalGrade, Timeframe, SignalDirection, TradeType, LayerResult } from '@/engine/types';
 
 export interface ISignal extends Document {
-  id: string; // use string id from the engine
+  id: string;
   coin: string;
   timeframe: Timeframe;
-  type: 'LONG' | 'SHORT';
-  status: 'ACTIVE' | 'CLOSED' | 'CANCELLED' | 'INVALIDATED';
-  entry: number;
-  targets: number[];
-  stopLoss: number;
+  direction: SignalDirection;
   grade: SignalGrade;
-  marketContext: MarketDirection;
+  tradeType: TradeType;
+  confidence: number;
+  layersAgreed: number;
+  layers: LayerResult[];
+  entryPriceLow: number;
+  entryPriceHigh: number;
+  stopLoss: number;
+  tp1: number;
+  tp2: number;
+  tp3: number;
+  riskRewardRatio: number;
+  candlePatterns: any[];
+  chartPatterns: any[];
   timestamp: number;
   expiresAt: number;
-  layers: any[]; // store the raw layer results if needed for history
+  status: 'ACTIVE' | 'EXPIRED' | 'HIT_TP' | 'HIT_SL';
 }
 
 const SignalSchema: Schema = new Schema(
@@ -23,16 +30,24 @@ const SignalSchema: Schema = new Schema(
     id: { type: String, required: true, unique: true },
     coin: { type: String, required: true },
     timeframe: { type: String, required: true },
-    type: { type: String, enum: ['LONG', 'SHORT'], required: true },
-    status: { type: String, enum: ['ACTIVE', 'CLOSED', 'CANCELLED', 'INVALIDATED'], required: true },
-    entry: { type: Number, required: true },
-    targets: { type: [Number], required: true },
-    stopLoss: { type: Number, required: true },
+    direction: { type: String, enum: ['BUY', 'SELL', 'HOLD'], required: true },
     grade: { type: String, required: true },
-    marketContext: { type: Object, required: true },
+    tradeType: { type: String, enum: ['SCALPING', 'INTRADAY', 'SWING'], required: true },
+    confidence: { type: Number, required: true },
+    layersAgreed: { type: Number, required: true },
+    layers: { type: Array, default: [] },
+    entryPriceLow: { type: Number, required: true },
+    entryPriceHigh: { type: Number, required: true },
+    stopLoss: { type: Number, required: true },
+    tp1: { type: Number, required: true },
+    tp2: { type: Number, required: true },
+    tp3: { type: Number, required: true },
+    riskRewardRatio: { type: Number, required: true },
+    candlePatterns: { type: Array, default: [] },
+    chartPatterns: { type: Array, default: [] },
     timestamp: { type: Number, required: true },
     expiresAt: { type: Number, required: true },
-    layers: { type: Array, default: [] },
+    status: { type: String, enum: ['ACTIVE', 'EXPIRED', 'HIT_TP', 'HIT_SL'], required: true },
   },
   { timestamps: true }
 );
